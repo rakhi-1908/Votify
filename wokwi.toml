@@ -1,0 +1,8 @@
+[wokwi]
+version = 1
+firmware = 'votify_hardware.ino'
+
+[net]
+forward = [
+  { from = 8080, to = 80 }
+]

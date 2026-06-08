@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "author": "Rakhi Goud",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-ds1307", "id": "rtc1", "top": 100.2, "left": 182.5, "attrs": {} },
+    { "type": "wokwi-slide-switch", "id": "sw1", "top": -34, "left": -217.7, "attrs": {} },
+    {
+      "type": "wokwi-buzzer",
+      "id": "bz1",
+      "top": -199.2,
+      "left": -171,
+      "attrs": { "volume": "0.1" }
+    },
+    {
+      "type": "board-mfrc522",
+      "id": "rfid1",
+      "top": 146.04,
+      "left": 669.05,
+      "rotate": 90,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-membrane-keypad",
+      "id": "keypad1",
+      "top": -357.2,
+      "left": -42.4,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-ili9341",
+      "id": "lcd1",
+      "top": 110.5,
+      "left": 414,
+      "rotate": 90,
+      "attrs": { "fast_mode": "1" }
+    }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "esp:GND.1", "rtc1:GND", "black", [] ],
+    [ "esp:3V3", "rtc1:5V", "red", [] ],
+    [ "rtc1:SDA", "esp:21", "green", [] ],
+    [ "rtc1:SCL", "esp:22", "green", [] ],
+    [ "sw1:2", "esp:34", "green", [] ],
+    [ "sw1:1", "esp:3V3", "red", [] ],
+    [ "bz1:2", "esp:15", "blue", [] ],
+    [ "bz1:1", "esp:GND.1", "black", [] ],
+    [ "rfid1:GND", "esp:GND.2", "black", [] ],
+    [ "rfid1:3.3V", "esp:3V3", "red", [] ],
+    [ "rfid1:SCK", "esp:18", "orange", [] ],
+    [ "rfid1:MOSI", "esp:23", "blue", [] ],
+    [ "rfid1:MISO", "esp:19", "yellow", [] ],
+    [ "rfid1:SDA", "esp:5", "white", [] ],
+    [ "rfid1:RST", "esp:2", "gray", [] ],
+    [ "keypad1:R1", "esp:13", "green", [] ],
+    [ "keypad1:R2", "esp:12", "green", [] ],
+    [ "keypad1:R3", "esp:14", "green", [] ],
+    [ "keypad1:R4", "esp:27", "green", [] ],
+    [ "keypad1:C1", "esp:26", "green", [] ],
+    [ "keypad1:C2", "esp:25", "green", [] ],
+    [ "keypad1:C3", "esp:33", "green", [] ],
+    [ "keypad1:C4", "esp:32", "green", [] ],
+    [ "lcd1:GND", "esp:GND.3", "black", [] ],
+    [ "lcd1:VCC", "esp:VIN", "red", [] ],
+    [ "lcd1:SCK", "esp:18", "orange", [] ],
+    [ "lcd1:MOSI", "esp:23", "blue", [] ],
+    [ "lcd1:CS", "esp:16", "green", [] ],
+    [ "lcd1:D/C", "esp:17", "green", [] ],
+    [ "lcd1:RST", "esp:4", "green", [] ]
+  ],
+  "dependencies": {}
+}
