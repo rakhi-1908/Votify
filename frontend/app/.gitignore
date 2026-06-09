@@ -1,0 +1,16 @@
+# Flutter/Dart junk
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+build/
+
+# Android junk
+.gradle/
+local.properties
+ant-properties.xml
+**/fastlane/report.xml
+
+# VS Code junk
+.vscode/
