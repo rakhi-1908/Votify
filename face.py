@@ -16,6 +16,7 @@ except Exception:
 import cv2
 import serial
 from deepface import DeepFace
+from supabase import create_client, Client
 
 
 # ============================================================
@@ -24,13 +25,17 @@ from deepface import DeepFace
 SERIAL_PORT = "COM3"
 BAUD_RATE = 115200
 CAMERA_INDEX = 0
-REFERENCE_IMAGE = r"C:\Users\admin\Desktop\rakhi\hardware\rakhi.jpg"
+REFERENCE_IMAGE = r"rakhi.jpg"
 MODEL_NAME = "VGG-Face"
 VERIFY_INTERVAL = 1.0
 COOLDOWN = 5.0
-VOTE_TIMEOUT = 30.0
+VOTE_TIMEOUT = 60.0
 CONFIRMATION_TIMEOUT = 10.0
 RECORDED_DISPLAY_TIME = 2.0
+
+# --- SUPABASE CONFIGURATION ---
+SUPABASE_URL = "https://arqbqmussmkdglmufdjj.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFycWJxbXVzc21rZGdsbXVmZGpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNTM2OTYsImV4cCI6MjA4ODcyOTY5Nn0.GI34_5gOYstXe7vESUczrBufWry4-oo5u0WXCG6cYdg"
 
 # Change candidate names here. Keys remain 1, 2, 3 and 4.
 CANDIDATES = {
@@ -55,6 +60,30 @@ def safe_print(message):
             print(str(message).encode("ascii", "replace").decode("ascii"))
         except Exception:
             pass
+
+
+def init_supabase():
+    try:
+        client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        safe_print("[SUPABASE] Connected successfully.")
+        return client
+    except Exception as e:
+        safe_print("[SUPABASE ERROR] Could not initialize: " + str(e))
+        return None
+
+
+def log_to_supabase(supabase, voter_status, candidate_name=None):
+    if supabase is None:
+        return
+    try:
+        data = {
+            "voter_status": voter_status,
+            "candidate_choice": candidate_name if candidate_name else "N/A",
+        }
+        supabase.table("booth_activity").insert(data).execute()
+        safe_print("[SUPABASE LOGGED] " + voter_status + " | Choice: " + str(candidate_name))
+    except Exception as error:
+        safe_print("[SUPABASE INSERT ERROR] " + str(error))
 
 
 def load_face_detector():
@@ -179,8 +208,11 @@ safe_print("")
 
 esp = None
 camera = None
+supabase = None
 
 try:
+    supabase = init_supabase()
+
     if not os.path.isfile(REFERENCE_IMAGE):
         safe_print("[ERROR] Reference image does not exist:")
         safe_print(REFERENCE_IMAGE)
@@ -257,8 +289,13 @@ try:
                 state = VOTE_RECORDED
                 state_started = now
                 safe_print("[SYSTEM] VOTE RECORDED")
+                # Log confirmed vote to Supabase
+                selected_candidate = CANDIDATES.get(candidate_key, "Unknown")
+                log_to_supabase(supabase, "VOTE_RECORDED", selected_candidate)
             elif now - state_started >= CONFIRMATION_TIMEOUT:
                 send_node_command(esp, "VOTE_CANCEL")
+                selected_candidate = CANDIDATES.get(candidate_key, "Unknown")
+                log_to_supabase(supabase, "CONFIRMATION_TIMEOUT", selected_candidate)
                 state = IDLE
                 candidate_key = None
                 error_text = "VOTE CONFIRMATION TIMEOUT"
@@ -278,6 +315,7 @@ try:
             candidate_key = None
             error_text = "VOTING TIMEOUT"
             state_started = now
+            log_to_supabase(supabase, "VOTING_TIMEOUT")
 
         camera_face = find_face(frame, face_detector)
         if camera_face is not None:
@@ -319,6 +357,7 @@ try:
                         candidate_key = None
                         error_text = ""
                         last_verified_time = now
+                        log_to_supabase(supabase, "FACE_VERIFIED")
                 else:
                     safe_print("[NO MATCH] Face not recognized.")
             except Exception as error:
@@ -330,6 +369,8 @@ try:
             if state in (VOTING, WAITING_FOR_CONFIRMATION):
                 send_node_command(esp, "VOTE_CANCEL")
                 safe_print("[SYSTEM] Voting cancelled.")
+                selected_candidate = CANDIDATES.get(candidate_key) if candidate_key else None
+                log_to_supabase(supabase, "VOTING_CANCELLED", selected_candidate)
                 state = IDLE
                 candidate_key = None
                 error_text = "VOTING CANCELLED"
@@ -341,6 +382,11 @@ try:
             if send_node_command(esp, "VOTE:" + candidate_key):
                 state = WAITING_FOR_CONFIRMATION
                 state_started = now
+                log_to_supabase(
+                    supabase,
+                    "VOTE_SUBMITTED",
+                    CANDIDATES[candidate_key],
+                )
 
         draw_interface(frame, state, candidate_key, error_text)
         cv2.imshow("Votify Face Verification", frame)

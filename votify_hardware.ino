@@ -25,20 +25,13 @@ void setup() {
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); 
   
   Serial.begin(115200);
+  Serial.setTimeout(50);
   delay(1000);
   Serial.println("\n--- Votify System Booting ---");
 
   // 2. WIFI CONNECTION
   WiFi.begin(ssid, password);
-  Serial.print("Connecting to WiFi");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-    yield(); 
-  }
-  Serial.println("\nWiFi Connected!");
-  Serial.print("IP Address: ");
-  Serial.println(WiFi.localIP());
+  Serial.println("WiFi connection started; serial voting remains available offline.");
 
   // 3. WEB SERVER ROUTE: Listen for your Python AI signal
   server.on("/verify", HTTP_GET, []() {
@@ -53,22 +46,39 @@ void setup() {
   Serial.println("System Online. Waiting for Python Bridge on Port 8080...");
 }
 
-void loop() {
-  server.handleClient();
-
-  // Manual Override via Serial Monitor (Type 'V')
-  if (Serial.available() > 0) {
-    char input = Serial.read();
-    if (input == 'V' || input == 'v') {
-      isVerified = true;
-      verificationTime = millis();
-      Serial.println("MANUAL OVERRIDE: Identity Confirmed.");
-      sendToSupabase("Manual Override", "Voter ID: SIM-001");
-    }
+void handleSerialCommand() {
+  if (!Serial.available()) {
+    return;
   }
 
-  // Security Timeout (Auto-lock after 30 seconds)
-  if (isVerified && (millis() - verificationTime > 30000)) {
+  String command = Serial.readStringUntil('\n');
+  command.trim();
+
+  if (command == "VERIFY") {
+    isVerified = true;
+    verificationTime = millis();
+    Serial.println("VERIFIED");
+  } else if (command.startsWith("VOTE:")) {
+    bool sessionActive = isVerified && (millis() - verificationTime <= 90000);
+    bool validCandidate = command.length() == 6 && command.charAt(5) >= '1' && command.charAt(5) <= '4';
+
+    if (sessionActive && validCandidate) {
+      isVerified = false;
+      Serial.println("VOTE_RECORDED");
+    } else {
+      Serial.println("VOTE_REJECTED");
+    }
+  } else if (command == "VOTE_CANCEL") {
+    isVerified = false;
+    Serial.println("VOTE_CANCELLED");
+  }
+}
+
+void loop() {
+  server.handleClient();
+  handleSerialCommand();
+
+  if (isVerified && (millis() - verificationTime > 90000)) {
     isVerified = false;
     Serial.println("Session Expired. System Relocked.");
   }
